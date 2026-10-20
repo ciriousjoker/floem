@@ -107,8 +107,7 @@ impl Buffer {
         let line_ending = LineEndingDetermination::determine(&text);
         let line_ending = line_ending.unwrap_or(LineEnding::Lf);
 
-        // Get rid of lone Cr's as Rope does not treat them as line endings
-        let text = line_ending.normalize_limited(&text);
+        // Text product patch: preserve exact input, including lone CR.
 
         let len = text.len();
         Self {
@@ -141,6 +140,16 @@ impl Buffer {
             indent_style: IndentStyle::DEFAULT_INDENT,
             line_ending,
         }
+    }
+
+    /// Whether a revision is available to undo.
+    pub fn can_undo(&self) -> bool {
+        self.cur_undo > 1
+    }
+
+    /// Whether an undone revision is available to redo.
+    pub fn can_redo(&self) -> bool {
+        self.cur_undo < self.live_undos.len()
     }
 
     /// The current buffer revision
@@ -292,7 +301,7 @@ impl Buffer {
             // a replacement right after it, and then it becomes a double newline.
             // A possible alternative that might be better overall (?) would be to get the range of
             // the delta and normalize that area after applying the delta.
-            builder.replace(start..end, self.line_ending.normalize(&rope));
+            builder.replace(start..end, rope);
         }
         let delta = builder.build();
         self.this_edit_type = edit_type;
